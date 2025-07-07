@@ -1,5 +1,5 @@
-// utils/farmUpdater.js
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const plantsData = require('../data/plants');
 
 function createFarmEmbed(userData, interaction) {
   const total = userData.plants.length;
@@ -14,9 +14,7 @@ function createFarmEmbed(userData, interaction) {
       { name: '🌿 กำลังเติบโต', value: `${growing}`, inline: true },
       { name: '📦 คลัง', value: `${userData.inventory}`, inline: true },
       { name: '💰 เงิน', value: `${userData.money}`, inline: true },
-      { name: '📏 พื้นที่ปลูก', value: `${userData.plots}`, inline: true },
-      { name: '⭐ เลเวล', value: `${userData.level}`, inline: true },
-      { name: '🧪 XP', value: `${userData.xp} / ${userData.level * 100}`, inline: true }
+      { name: '🛖 พื้นที่ปลูก', value: `${userData.plots}`, inline: true }
     )
     .setFooter({ text: 'ใช้ปุ่มด้านล่างเพื่อจัดการฟาร์ม' });
 }
@@ -25,13 +23,11 @@ function farmButtons() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('plant').setLabel('🌱 ปลูก').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId('harvest').setLabel('🌾 เก็บเกี่ยว').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('upgrade').setLabel('📈 อัปเกรด').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('buyplot').setLabel('🛒 ซื้อพื้นที่ปลูก').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('refresh').setLabel('🔄 รีเฟรช').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('refresh').setLabel('🔄 รีเฟรช').setStyle(ButtonStyle.Primary),
   );
 }
 
-async function sendFarmWithAutoUpdate(interaction, dataManager, client) {
+async function sendFarmWithAutoUpdate(interaction, dataManager) {
   const userId = interaction.user.id;
   let userData = dataManager.getUserData(userId);
 
@@ -45,7 +41,7 @@ async function sendFarmWithAutoUpdate(interaction, dataManager, client) {
     embeds: [createFarmEmbed(userData, interaction)],
     components: [farmButtons()],
     ephemeral: true,
-    fetchReply: true
+    fetchReply: true,
   });
 
   const interval = setInterval(async () => {
@@ -65,15 +61,14 @@ async function sendFarmWithAutoUpdate(interaction, dataManager, client) {
 
       await message.edit({
         embeds: [createFarmEmbed(userData, interaction)],
-        components: [farmButtons()]
+        components: [farmButtons()],
       });
     } catch (err) {
-      console.error('Auto update stopped:', err.message);
       clearInterval(interval);
     }
   }, 10000);
 
-  setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
+  setTimeout(() => clearInterval(interval), 300000); // 5 นาที
 }
 
 module.exports = { sendFarmWithAutoUpdate };

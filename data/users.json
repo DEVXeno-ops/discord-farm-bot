@@ -1,1 +1,16 @@
-{}
+{
+  "1162698123181817857": {
+    "money": 100,
+    "inventory": 0,
+    "plots": 3,
+    "plants": [
+      {
+        "id": "carrot",
+        "plantedAt": 1751898241338,
+        "growTime": 10000,
+        "ready": true,
+        "harvested": false
+      }
+    ]
+  }
+}

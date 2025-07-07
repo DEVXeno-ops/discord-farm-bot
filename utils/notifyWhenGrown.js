@@ -1,10 +1,4 @@
-// utils/notifyWhenGrown.js
 const plantsData = require('../data/plants');
-
-function getPlantName(plantId, lang = 'th') {
-  const plant = plantsData.find(p => p.id === plantId);
-  return plant ? `${plant.emoji} ${plant.name[lang]}` : 'Unknown';
-}
 
 async function notifyReadyPlants(client, dataManager) {
   const allUsers = dataManager.getAllUsers();
@@ -23,16 +17,12 @@ async function notifyReadyPlants(client, dataManager) {
 
     if (readyPlants.length > 0) {
       dataManager.updateUserData(userId, userData);
-      const user = await client.users.fetch(userId).catch(() => null);
-
-      if (user) {
-        const language = userData.lang || 'th';
-        const list = readyPlants.map(p => `• ${getPlantName(p.id, language)}`).join('\n');
-        const message = language === 'th'
-          ? `🌾 พืชของคุณเติบโตแล้ว!\n${list}`
-          : `🌾 Your crops are ready!\n${list}`;
-
-        user.send({ content: message }).catch(() => null);
+      try {
+        const user = await client.users.fetch(userId);
+        const list = readyPlants.map(p => `• ${plantsData.find(pl => pl.id === p.id).emoji} ${plantsData.find(pl => pl.id === p.id).name}`).join('\n');
+        await user.send(`🌾 พืชของคุณโตแล้ว!\n${list}`);
+      } catch {
+        // ข้ามถ้า DM ไม่ได้
       }
     }
   }

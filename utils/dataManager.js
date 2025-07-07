@@ -1,76 +1,46 @@
 const fs = require('fs');
 const path = require('path');
 
-const dataFilePath = path.join(__dirname, '..', 'data', 'users.json');
+const DATA_PATH = path.join(__dirname, '../data/users.json');
 
-let cache = null;
-let saving = false;
-let saveQueued = false;
+class DataManager {
+  constructor() {
+    this.users = {};
+    this.load();
+  }
 
-// โหลดข้อมูลจากไฟล์ หรือคืนค่า object ว่าง
-function loadData() {
-  if (cache) return cache;
-  try {
-    if (!fs.existsSync(dataFilePath)) {
-      cache = {};
-      return cache;
+  load() {
+    if (fs.existsSync(DATA_PATH)) {
+      const raw = fs.readFileSync(DATA_PATH, 'utf8');
+      this.users = JSON.parse(raw);
     }
-    const raw = fs.readFileSync(dataFilePath, 'utf8');
-    cache = JSON.parse(raw);
-    return cache;
-  } catch {
-    cache = {};
-    return cache;
   }
-}
 
-// บันทึกข้อมูลลงไฟล์ (queue เพื่อป้องกันเขียนซ้อน)
-function saveData(data) {
-  cache = data;
-  if (saving) {
-    saveQueued = true;
-    return;
+  save() {
+    fs.writeFileSync(DATA_PATH, JSON.stringify(this.users, null, 2));
   }
-  saving = true;
-  fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), (err) => {
-    saving = false;
-    if (err) console.error('Failed to save data:', err);
-    if (saveQueued) {
-      saveQueued = false;
-      saveData(cache);
+
+  getUserData(userId) {
+    if (!this.users[userId]) {
+      this.users[userId] = {
+        money: 100,
+        inventory: 0,
+        plots: 3,
+        plants: [],
+      };
+      this.save();
     }
-  });
-}
-
-// ดึงข้อมูลผู้ใช้ หรือสร้างข้อมูลเริ่มต้นถ้ายังไม่มี
-function getUserData(userId) {
-  const data = loadData();
-  if (!data[userId]) {
-    data[userId] = {
-      plants: [],
-      inventory: 0,
-      money: 100,
-      upgradeLevel: 1,
-      xp: 0,
-      level: 1,
-      plots: 1,
-      lastPlantTime: 0
-    };
-    saveData(data);
+    return this.users[userId];
   }
-  return data[userId];
+
+  updateUserData(userId, newData) {
+    this.users[userId] = newData;
+    this.save();
+  }
+
+  getAllUsers() {
+    return this.users;
+  }
 }
 
-// อัปเดตข้อมูลผู้ใช้และบันทึก
-function updateUserData(userId, newData) {
-  const data = loadData();
-  data[userId] = { ...data[userId], ...newData };
-  saveData(data);
-}
-
-module.exports = {
-  loadData,
-  saveData,
-  getUserData,
-  updateUserData,
-};
+module.exports = new DataManager();
