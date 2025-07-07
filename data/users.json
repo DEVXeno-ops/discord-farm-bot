@@ -1,0 +1,19 @@
+{
+  "1162698123181817857": {
+    "plants": [
+      {
+        "plantedAt": 1751896031604,
+        "growTime": 10000,
+        "ready": false
+      }
+    ],
+    "inventory": 49,
+    "money": 20,
+    "upgradeLevel": 3,
+    "xp": 76,
+    "level": 1,
+    "lastHarvest": 1751894159688,
+    "lastPlantTime": 1751896031604,
+    "plots": 4
+  }
+}
