@@ -1,29 +1,36 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
-  data: new SlashCommandBuilder().setName('farm').setDescription('เปิดหน้าฟาร์มของคุณ'),
-  async execute(interaction, users, saveUsers, ensureUserData, checkPlantsReady) {
+  data: new SlashCommandBuilder()
+    .setName('farm')
+    .setDescription('เปิดหน้าฟาร์มของคุณ'),
+  async execute(interaction, dataManager) {
     const userId = interaction.user.id;
-    const user = ensureUserData(users, userId);
-    checkPlantsReady(user.plants);
+    const userData = dataManager.getUserData(userId);
+    // อัปเดตสถานะพืชก่อน
+    const now = Date.now();
+    userData.plants.forEach(p => {
+      if (!p.ready && now - p.plantedAt >= p.growTime) p.ready = true;
+    });
+    dataManager.updateUserData(userId, userData);
 
-    const total = user.plants.length;
-    const ready = user.plants.filter(p => p.ready).length;
+    const total = userData.plants.length;
+    const ready = userData.plants.filter(p => p.ready).length;
     const growing = total - ready;
 
     const embed = new EmbedBuilder()
       .setTitle(`🌾 ฟาร์มของ ${interaction.user.username}`)
-      .setColor(0x86efac)
+      .setColor('#57f287')
       .addFields(
         { name: '🌱 พืชโตแล้ว', value: `${ready}`, inline: true },
         { name: '🌿 กำลังเติบโต', value: `${growing}`, inline: true },
-        { name: '📦 คลัง', value: `${user.inventory}`, inline: true },
-        { name: '💰 เงิน', value: `${user.money}`, inline: true },
-        { name: '📏 พื้นที่ปลูก', value: `${user.plots}`, inline: true },
-        { name: '⭐ เลเวล', value: `${user.level}`, inline: true },
-        { name: '🧪 XP', value: `${user.xp} / ${user.level * 100}`, inline: true },
+        { name: '📦 คลัง', value: `${userData.inventory}`, inline: true },
+        { name: '💰 เงิน', value: `${userData.money}`, inline: true },
+        { name: '📏 พื้นที่ปลูก', value: `${userData.plots}`, inline: true },
+        { name: '⭐ เลเวล', value: `${userData.level}`, inline: true },
+        { name: '🧪 XP', value: `${userData.xp} / ${userData.level * 100}`, inline: true },
       )
-      .setFooter({ text: 'กดปุ่มเพื่อจัดการฟาร์มของคุณ' });
+      .setFooter({ text: 'ใช้ปุ่มด้านล่างเพื่อจัดการฟาร์ม' });
 
     const buttons = new ActionRowBuilder()
       .addComponents(
