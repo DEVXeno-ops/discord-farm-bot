@@ -1,4 +1,4 @@
-module.exports = [
+const plants = [
   {
     id: 'carrot',
     name: 'แครอท',
@@ -18,3 +18,5 @@ module.exports = [
     growTime: 15000,
   },
 ];
+
+module.exports = plants;

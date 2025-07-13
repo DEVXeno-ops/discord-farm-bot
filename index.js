@@ -15,8 +15,22 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
   console.log(`Logged in as ${client.user.tag}`);
+  console.log('Discord Farm Bot by xᴇɴᴏ miss. ขอบคุณที่ใช้บอทนี้!');
+
+  // ส่งข้อความแจ้งใน Discord channel (ถ้ามีตั้งค่าใน .env)
+  const channelId = process.env.READY_CHANNEL_ID;
+  if (channelId) {
+    try {
+      const channel = await client.channels.fetch(channelId);
+      if (channel && channel.isTextBased()) {
+        channel.send('🤖 Discord Farm Bot พร้อมใช้งานแล้ว! สร้างโดย xᴇɴᴏ miss.');
+      }
+    } catch (error) {
+      console.error('ไม่สามารถส่งข้อความในช่อง Discord ได้:', error);
+    }
+  }
 
   setInterval(() => notifyReadyPlants(client, dataManager), 10000);
 });

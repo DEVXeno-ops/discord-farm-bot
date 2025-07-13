@@ -15,6 +15,13 @@ module.exports = {
     const userId = interaction.user.id;
     const userData = dataManager.getUserData(userId);
 
+    if (!userData || !Array.isArray(userData.plants) || typeof userData.plots !== 'number') {
+      return interaction.reply({
+        content: '❌ ไม่พบข้อมูลฟาร์มหรือข้อมูลไม่ถูกต้อง',
+        ephemeral: true,
+      });
+    }
+
     if (userData.plants.length >= userData.plots) {
       return interaction.reply({
         content: '❌ คุณไม่มีช่องว่างเพียงพอในการปลูกพืช',
@@ -48,25 +55,44 @@ module.exports = {
     });
 
     collector.on('collect', async i => {
-      if (i.user.id !== userId)
+      if (i.user.id !== userId) {
         return i.reply({ content: '⛔ ไม่ใช่ปุ่มของคุณ!', ephemeral: true });
+      }
 
-      const selectedPlant = plantsData.find(p => p.id === i.values[0]);
+      try {
+        const selectedPlant = plantsData.find(p => p.id === i.values[0]);
+        if (!selectedPlant) {
+          return i.reply({ content: '❌ ไม่พบพืชที่เลือก', ephemeral: true });
+        }
 
-      userData.plants.push({
-        id: selectedPlant.id,
-        plantedAt: Date.now(),
-        growTime: selectedPlant.growTime,
-        ready: false,
-        harvested: false,
-      });
+        userData.plants.push({
+          id: selectedPlant.id,
+          plantedAt: Date.now(),
+          growTime: selectedPlant.growTime,
+          harvested: false,
+        });
 
-      dataManager.updateUserData(userId, userData);
+        dataManager.updateUserData(userId, userData);
 
-      await i.update({
-        content: `✅ คุณได้ปลูก ${selectedPlant.emoji} **${selectedPlant.name}**!`,
-        components: [],
-      });
+        await i.update({
+          content: `✅ คุณได้ปลูก ${selectedPlant.emoji} **${selectedPlant.name}**!`,
+          components: [],
+        });
+
+        collector.stop();
+      } catch (error) {
+        console.error('Error in plant select collector:', error);
+        await i.reply({ content: 'เกิดข้อผิดพลาดในการปลูกพืช', ephemeral: true });
+      }
+    });
+
+    collector.on('end', (collected, reason) => {
+      if (reason === 'time') {
+        interaction.editReply({
+          content: '⌛ หมดเวลาการเลือกพืชแล้ว',
+          components: [],
+        }).catch(() => {});
+      }
     });
   },
 };
