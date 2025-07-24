@@ -9,27 +9,30 @@ class DataManager {
     this.load();
   }
 
+  // โหลดข้อมูลจากไฟล์ JSON
   load() {
     if (fs.existsSync(DATA_PATH)) {
       try {
         const raw = fs.readFileSync(DATA_PATH, 'utf8');
         this.users = JSON.parse(raw);
       } catch (error) {
-        console.error('Error loading users.json:', error);
+        console.error('❌ โหลด users.json ไม่สำเร็จ:', error);
         this.users = {};
-        this.save(); // สร้างไฟล์ใหม่ถ้าไฟล์เดิมเสียหาย
+        this.save(); // สร้างใหม่ถ้าไฟล์เสีย
       }
     }
   }
 
+  // บันทึกข้อมูลลงไฟล์
   save() {
     try {
       fs.writeFileSync(DATA_PATH, JSON.stringify(this.users, null, 2));
     } catch (error) {
-      console.error('Error saving users.json:', error);
+      console.error('❌ บันทึก users.json ไม่สำเร็จ:', error);
     }
   }
 
+  // คืนข้อมูลของผู้ใช้ หากยังไม่มีจะสร้างใหม่
   getUserData(userId) {
     if (!this.users[userId]) {
       this.users[userId] = {
@@ -43,18 +46,48 @@ class DataManager {
       };
       this.save();
     }
-    // คืนค่า deep copy ป้องกันแก้ไขข้อมูลโดยตรงนอกคลาส
-    return JSON.parse(JSON.stringify(this.users[userId]));
+    return structuredClone(this.users[userId]); // clone ปลอดภัย
   }
 
+  // อัปเดตข้อมูลของผู้ใช้
   updateUserData(userId, newData) {
     this.users[userId] = newData;
     this.save();
   }
 
+  // คืนข้อมูลผู้ใช้ทั้งหมด
   getAllUsers() {
-    // คืนค่า deep copy เพื่อป้องกันแก้ไขข้อมูลภายนอก
-    return JSON.parse(JSON.stringify(this.users));
+    return structuredClone(this.users);
+  }
+
+  // เพิ่มเงินให้ผู้ใช้
+  addMoney(userId, amount) {
+    const data = this.getUserData(userId);
+    data.money = (data.money || 0) + amount;
+    this.updateUserData(userId, data);
+  }
+
+  // เพิ่มของในคลังให้ผู้ใช้
+  addInventory(userId, amount) {
+    const data = this.getUserData(userId);
+    data.inventory = (data.inventory || 0) + amount;
+    this.updateUserData(userId, data);
+  }
+
+  // เพิ่ม XP และจัดการเลเวลอัปอัตโนมัติ
+  addXP(userId, amount) {
+    const data = this.getUserData(userId);
+    data.xp = (data.xp || 0) + amount;
+
+    let leveledUp = false;
+    while (data.xp >= data.level * 100) {
+      data.xp -= data.level * 100;
+      data.level += 1;
+      leveledUp = true;
+    }
+
+    this.updateUserData(userId, data);
+    return leveledUp;
   }
 }
 

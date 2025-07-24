@@ -1,10 +1,10 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const plantsData = require('../data/plants');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('harvest')
-    .setDescription('เก็บเกี่ยวพืชที่โตแล้ว'),
+    .setDescription('🌾 เก็บเกี่ยวพืชที่โตแล้ว'),
 
   async execute(interaction, dataManager) {
     const userId = interaction.user.id;
@@ -19,40 +19,45 @@ module.exports = {
 
     const now = Date.now();
 
-    // หาเฉพาะพืชที่ยังไม่เก็บและโตครบเวลา
+    // หาเฉพาะพืชที่โตครบเวลาและยังไม่ถูกเก็บ
     const readyPlants = userData.plants.filter(p => !p.harvested && now - p.plantedAt >= p.growTime);
 
     if (readyPlants.length === 0) {
       return interaction.reply({
-        content: '❌ ยังไม่มีพืชที่พร้อมเก็บเกี่ยว',
+        content: '⏳ ยังไม่มีพืชที่พร้อมเก็บเกี่ยวในตอนนี้',
         ephemeral: true,
       });
     }
 
     let totalReward = 0;
+    let harvestedList = [];
 
-    readyPlants.forEach(p => {
-      p.harvested = true; // ทำเครื่องหมายว่าเก็บแล้ว
-      totalReward += 20; // สมมติค่าต้นละ 20 เงิน
-    });
+    // เก็บเกี่ยวพืช
+    for (const plant of readyPlants) {
+      plant.harvested = true;
+      totalReward += 20; // ค่าพืชต้นละ 20
+      const plantInfo = plantsData.find(pl => pl.id === plant.id);
+      harvestedList.push(`• ${plantInfo?.emoji ?? '🌱'} ${plantInfo?.name ?? 'Unknown Plant'}`);
+    }
 
+    // อัปเดตเงินและ inventory
     userData.money = (userData.money || 0) + totalReward;
-
-    // ถ้า inventory เป็นจำนวนรวมของพืชที่เก็บได้
     userData.inventory = (userData.inventory || 0) + readyPlants.length;
-
     dataManager.updateUserData(userId, userData);
 
-    // สร้างลิสต์ชื่อพืช + emoji โดยหา plant data แค่ครั้งเดียวใน loop
-    const cropsList = readyPlants
-      .map(p => {
-        const plantInfo = plantsData.find(pl => pl.id === p.id);
-        return `• ${plantInfo?.emoji ?? '🌱'} ${plantInfo?.name ?? 'Unknown Plant'}`;
-      })
-      .join('\n');
+    // สร้าง embed ตอบกลับ
+    const embed = new EmbedBuilder()
+      .setTitle('🌾 เก็บเกี่ยวสำเร็จ!')
+      .setDescription(`${harvestedList.join('\n')}`)
+      .addFields(
+        { name: '✅ จำนวนที่เก็บ', value: `${readyPlants.length} ต้น`, inline: true },
+        { name: '💰 รางวัลที่ได้รับ', value: `${totalReward} เงิน`, inline: true },
+      )
+      .setColor(0x2ecc71)
+      .setFooter({ text: 'กลับมาดูฟาร์มของคุณอีกครั้งเร็ว ๆ นี้!' });
 
     return interaction.reply({
-      content: `✅ เก็บเกี่ยวแล้วจำนวน ${readyPlants.length} ต้น\n${cropsList}\n💰 ได้รับ ${totalReward} เงิน!`,
+      embeds: [embed],
       ephemeral: true,
     });
   },

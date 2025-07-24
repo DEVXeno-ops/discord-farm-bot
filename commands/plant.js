@@ -3,13 +3,14 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ComponentType,
+  EmbedBuilder,
 } = require('discord.js');
 const plantsData = require('../data/plants');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('plant')
-    .setDescription('ปลูกพืชในฟาร์มของคุณ'),
+    .setDescription('🌱 ปลูกพืชในฟาร์มของคุณ'),
 
   async execute(interaction, dataManager) {
     const userId = interaction.user.id;
@@ -29,21 +30,28 @@ module.exports = {
       });
     }
 
+    // สร้าง select menu สำหรับพืช
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('select-plant')
-      .setPlaceholder('เลือกพืชที่ต้องการปลูก')
+      .setPlaceholder('🪴 เลือกพืชที่คุณต้องการปลูก')
       .addOptions(
         plantsData.map(plant => ({
-          label: `${plant.emoji} ${plant.name}`,
-          description: `เวลาโต: ${plant.growTime / 1000} วินาที`,
+          label: `${plant.name}`,
+          description: `⏱️ โตภายใน ${plant.growTime / 1000} วินาที`,
+          emoji: plant.emoji,
           value: plant.id,
-        })),
+        }))
       );
 
     const row = new ActionRowBuilder().addComponents(selectMenu);
 
+    const embed = new EmbedBuilder()
+      .setTitle('🌿 เลือกพืชที่คุณต้องการปลูก')
+      .setDescription('เลือกพืชจากรายการด้านล่างเพื่อปลูกลงในฟาร์มของคุณ')
+      .setColor('#27ae60');
+
     const msg = await interaction.reply({
-      content: '🌱 กรุณาเลือกพืชที่ต้องการปลูก:',
+      embeds: [embed],
       components: [row],
       ephemeral: true,
       fetchReply: true,
@@ -54,43 +62,50 @@ module.exports = {
       time: 15000,
     });
 
+    let hasResponded = false;
+
     collector.on('collect', async i => {
       if (i.user.id !== userId) {
-        return i.reply({ content: '⛔ ไม่ใช่ปุ่มของคุณ!', ephemeral: true });
+        return i.reply({ content: '⛔ คุณไม่ได้เป็นเจ้าของเมนูนี้', ephemeral: true });
       }
 
-      try {
-        const selectedPlant = plantsData.find(p => p.id === i.values[0]);
-        if (!selectedPlant) {
-          return i.reply({ content: '❌ ไม่พบพืชที่เลือก', ephemeral: true });
-        }
+      if (hasResponded) return; // ป้องกัน double response
+      hasResponded = true;
 
-        userData.plants.push({
-          id: selectedPlant.id,
-          plantedAt: Date.now(),
-          growTime: selectedPlant.growTime,
-          harvested: false,
-        });
-
-        dataManager.updateUserData(userId, userData);
-
-        await i.update({
-          content: `✅ คุณได้ปลูก ${selectedPlant.emoji} **${selectedPlant.name}**!`,
-          components: [],
-        });
-
-        collector.stop();
-      } catch (error) {
-        console.error('Error in plant select collector:', error);
-        await i.reply({ content: 'เกิดข้อผิดพลาดในการปลูกพืช', ephemeral: true });
+      const selectedPlant = plantsData.find(p => p.id === i.values[0]);
+      if (!selectedPlant) {
+        return i.reply({ content: '❌ ไม่พบพืชที่คุณเลือก', ephemeral: true });
       }
+
+      // เพิ่มพืชเข้าในฟาร์ม
+      userData.plants.push({
+        id: selectedPlant.id,
+        plantedAt: Date.now(),
+        growTime: selectedPlant.growTime,
+        harvested: false,
+      });
+
+      dataManager.updateUserData(userId, userData);
+
+      const plantedEmbed = new EmbedBuilder()
+        .setTitle(`✅ ปลูก ${selectedPlant.name} สำเร็จ!`)
+        .setDescription(`${selectedPlant.emoji} กำลังเติบโตในฟาร์มของคุณ`)
+        .setColor('#2ecc71');
+
+      await i.update({
+        embeds: [plantedEmbed],
+        components: [],
+      });
+
+      collector.stop();
     });
 
-    collector.on('end', (collected, reason) => {
-      if (reason === 'time') {
-        interaction.editReply({
+    collector.on('end', async (_, reason) => {
+      if (reason === 'time' && !hasResponded) {
+        await interaction.editReply({
           content: '⌛ หมดเวลาการเลือกพืชแล้ว',
           components: [],
+          embeds: [],
         }).catch(() => {});
       }
     });
