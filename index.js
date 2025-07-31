@@ -34,10 +34,21 @@ for (const file of commandFiles) {
   }
 }
 
+// ฟังก์ชันวนลูปแจ้งเตือนพืชโต ด้วย setTimeout เพื่อป้องกันการเรียกซ้อนกัน
+async function startNotifyLoop() {
+  try {
+    await notifyReadyPlants(client, dataManager);
+  } catch (err) {
+    console.error('❌ notifyReadyPlants error:', err);
+  }
+  setTimeout(startNotifyLoop, 10000);
+}
+
 // เมื่อบอทพร้อมใช้งาน
 client.once(Events.ClientReady, async () => {
-  console.log(`✅ เข้าสู่ระบบในชื่อ ${client.user.tag}`);
-  console.log('🌾 Discord Farm Bot พร้อมใช้งานแล้ว! โดย xᴇɴᴏ miss');
+  console.log(`[${new Date().toISOString()}] ✅ เข้าสู่ระบบในชื่อ ${client.user.tag}`);
+  console.log(`[${new Date().toISOString()}] 🌾 Discord Farm Bot พร้อมใช้งานแล้ว! โดย xᴇɴᴏ miss`);
+  console.log(`[${new Date().toISOString()}] โหลดคำสั่งทั้งหมด ${client.commands.size} คำสั่ง`);
 
   // ส่งข้อความแจ้งเตือนในช่อง Discord ที่กำหนด (ถ้ามี)
   const channelId = process.env.READY_CHANNEL_ID;
@@ -52,8 +63,8 @@ client.once(Events.ClientReady, async () => {
     }
   }
 
-  // เรียกใช้งานฟังก์ชันแจ้งเตือนพืชโตทุก 10 วินาที
-  setInterval(() => notifyReadyPlants(client, dataManager), 10000);
+  // เริ่มลูปแจ้งเตือนพืชโต
+  startNotifyLoop();
 });
 
 // ฟังเหตุการณ์ interaction (slash command)
@@ -63,8 +74,12 @@ client.on(Events.InteractionCreate, async interaction => {
   const command = client.commands.get(interaction.commandName);
   if (!command) {
     console.warn(`❌ ไม่พบคำสั่งชื่อ "${interaction.commandName}"`);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '❌ ไม่พบคำสั่งนี้', ephemeral: true });
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: '❌ ไม่พบคำสั่งนี้', ephemeral: true });
+      }
+    } catch (replyErr) {
+      console.error('❌ ไม่สามารถส่งข้อความตอบกลับ interaction:', replyErr);
     }
     return;
   }
@@ -73,8 +88,12 @@ client.on(Events.InteractionCreate, async interaction => {
     await command.execute(interaction, dataManager, client);
   } catch (err) {
     console.error(`❌ เกิดข้อผิดพลาดในคำสั่ง ${interaction.commandName}:`, err);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '🚫 เกิดข้อผิดพลาดระหว่างการดำเนินการคำสั่งนี้', ephemeral: true });
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: '🚫 เกิดข้อผิดพลาดระหว่างการดำเนินการคำสั่งนี้', ephemeral: true });
+      }
+    } catch (replyErr) {
+      console.error('❌ ไม่สามารถส่งข้อความตอบกลับ interaction เมื่อเกิด error:', replyErr);
     }
   }
 });
