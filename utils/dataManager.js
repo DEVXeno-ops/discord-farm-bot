@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 const DATA_PATH = path.join(__dirname, '../data/users.json');
@@ -9,31 +9,33 @@ class DataManager {
     this.load();
   }
 
-  // โหลดข้อมูลจากไฟล์ JSON
-  load() {
-    if (fs.existsSync(DATA_PATH)) {
-      try {
-        const raw = fs.readFileSync(DATA_PATH, 'utf8');
-        this.users = JSON.parse(raw);
-      } catch (error) {
+  async load() {
+    try {
+      const raw = await fs.readFile(DATA_PATH, 'utf8');
+      this.users = JSON.parse(raw);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        // ไฟล์ยังไม่มี สร้างไฟล์เปล่าใหม่
+        this.users = {};
+        await this.save();
+      } else {
         console.error('❌ โหลด users.json ไม่สำเร็จ:', error);
         this.users = {};
-        this.save(); // สร้างใหม่ถ้าไฟล์เสีย
+        await this.save();
       }
     }
   }
 
-  // บันทึกข้อมูลลงไฟล์
-  save() {
+  async save() {
     try {
-      fs.writeFileSync(DATA_PATH, JSON.stringify(this.users, null, 2));
+      await fs.writeFile(DATA_PATH, JSON.stringify(this.users, null, 2), 'utf8');
     } catch (error) {
       console.error('❌ บันทึก users.json ไม่สำเร็จ:', error);
     }
   }
 
-  // คืนข้อมูลของผู้ใช้ หากยังไม่มีจะสร้างใหม่
   getUserData(userId) {
+    if (!userId) throw new Error('userId ต้องไม่ว่าง');
     if (!this.users[userId]) {
       this.users[userId] = {
         money: 100,
@@ -44,37 +46,36 @@ class DataManager {
         xp: 0,
         upgradeLevel: 0,
       };
-      this.save();
+      this.save(); // ไม่ต้อง await เพื่อไม่ให้ block
     }
-    return structuredClone(this.users[userId]); // clone ปลอดภัย
+    return structuredClone(this.users[userId]);
   }
 
-  // อัปเดตข้อมูลของผู้ใช้
-  updateUserData(userId, newData) {
+  async updateUserData(userId, newData) {
+    if (!userId) throw new Error('userId ต้องไม่ว่าง');
+    if (typeof newData !== 'object' || newData === null) {
+      throw new Error('newData ต้องเป็น object');
+    }
     this.users[userId] = newData;
-    this.save();
+    await this.save();
   }
 
-  // คืนข้อมูลผู้ใช้ทั้งหมด
   getAllUsers() {
     return structuredClone(this.users);
   }
 
-  // เพิ่มเงินให้ผู้ใช้
   addMoney(userId, amount) {
     const data = this.getUserData(userId);
     data.money = (data.money || 0) + amount;
     this.updateUserData(userId, data);
   }
 
-  // เพิ่มของในคลังให้ผู้ใช้
   addInventory(userId, amount) {
     const data = this.getUserData(userId);
     data.inventory = (data.inventory || 0) + amount;
     this.updateUserData(userId, data);
   }
 
-  // เพิ่ม XP และจัดการเลเวลอัปอัตโนมัติ
   addXP(userId, amount) {
     const data = this.getUserData(userId);
     data.xp = (data.xp || 0) + amount;
